@@ -1,0 +1,26 @@
+{
+  "name": "service_tounsi",
+  "private": true,
+  "version": "0.1.0",
+  "type": "commonjs",
+  "description": "AI-powered services for Tunisian market",
+  "scripts": {
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install && cd ..",
+    "dev:server": "cd server && node index.js",
+    "dev:client": "cd client && npm run dev",
+    "build:client": "cd client && npm run build",
+    "preview": "cd client && npm run preview",
+    "start": "cd server && node index.js"
+  },
+  "keywords": [
+    "ai",
+    "tunisian",
+    "gemini",
+    "konnect"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
