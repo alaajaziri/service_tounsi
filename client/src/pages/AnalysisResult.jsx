@@ -225,7 +225,7 @@ function StyleCard({ style }) {
         <img
           src={style.imageUrl}
           alt={style.name || 'Style image'}
-          className="w-full h-44 object-cover rounded-lg border border-outline-variant/20 mb-3"
+          className="w-full aspect-square object-contain bg-surface rounded-lg border border-outline-variant/20 mb-3"
           onError={(e) => {
             e.currentTarget.style.display = 'none'
           }}
@@ -274,7 +274,7 @@ function MealCard({ recipe }) {
         <img
           src={recipe.imageUrl}
           alt={recipe.name}
-          className="w-full h-48 object-cover"
+          className="w-full h-80 object-cover object-center"
           onError={(e) => {
             e.currentTarget.style.display = 'none'
           }}

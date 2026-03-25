@@ -210,7 +210,7 @@ async function addGeneratedStyleImages(styles, serviceId) {
   const withImages = await Promise.all(
     safeStyles.map(async (style) => {
       const name = String(style?.name || styleType).trim();
-      const prompt = `Studio portrait of a man with ${name} ${styleType}, barbershop lighting, realistic hairstyle details, high quality photo`;
+      const prompt = `Studio portrait of a man with ${name} ${styleType}, full head and beard clearly visible, include hairline, sides, chin and jaw area, not close-up face crop, centered square composition, barbershop lighting, realistic details, high quality photo`;
       const generated = await generateImageWithHuggingFace(prompt);
 
       return {
@@ -321,6 +321,24 @@ router.post("/:serviceId", analyzeRateLimit, upload.single("photo"), async (req,
           return res.json({ success: true, result: JSON.stringify(parsed) });
         } catch (styleImageError) {
           console.warn("⚠️ Style image generation failed, returning original styles:", styleImageError.message);
+        }
+      }
+    }
+
+    // Single-call beard+haircut flow.
+    if (serviceId === "style") {
+      const parsed = parseJsonFromText(resultText);
+      if (parsed && (parsed.beard || parsed.haircut)) {
+        try {
+          if (parsed.beard && Array.isArray(parsed.beard.styles)) {
+            parsed.beard.styles = await addGeneratedStyleImages(parsed.beard.styles, "beard");
+          }
+          if (parsed.haircut && Array.isArray(parsed.haircut.styles)) {
+            parsed.haircut.styles = await addGeneratedStyleImages(parsed.haircut.styles, "haircut");
+          }
+          return res.json({ success: true, result: JSON.stringify(parsed) });
+        } catch (combinedStyleImageError) {
+          console.warn("⚠️ Combined style image generation failed, returning original payload:", combinedStyleImageError.message);
         }
       }
     }

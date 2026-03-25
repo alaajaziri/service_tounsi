@@ -5,7 +5,7 @@ export default function BeardAdvisor() {
     <ServicePage
       serviceId="beard"
       hero={{
-        analysisServiceIds: ['beard', 'haircut'],
+        analysisServiceIds: ['style'],
         resultRouteId: 'style',
         image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBuHPv2QroN3RyiHVa6IYTnTPao-e3lHkbD7xzO1cIwCO3v5ZkHc1pooXtRcpgX7WMDrropiWs30flzpHza_wZLoxCYGg6_K1qRaGOiWTfQfh_VItnmAcZ7KH3J0Y0uN_uXs7Hh8Z7O40uw0o7LC2nZzInirka3t2fNxNTRxHwnamGVgcM2fVvnJdwvyT_oLOvLKZeymxA9k7_Y9KJsBvGn-3ZFui9QYdmjp2Uq3gHMxpzNaoCNKiAh6AF8UjY9W5Xvmua4wALz5CFf',
         alt: 'Portrait of a sophisticated man with a perfectly groomed thick beard',

@@ -5,7 +5,7 @@ export default function HaircutAdvisor() {
     <ServicePage
       serviceId="haircut"
       hero={{
-        analysisServiceIds: ['beard', 'haircut'],
+        analysisServiceIds: ['style'],
         resultRouteId: 'style',
         image: 'https://lh3.googleusercontent.com/aida-public/TB97jbQ8GEfx1y2zJh8BqMK2XkqWLOXuKx2kI3N1fDqVnQNgmOdN-JqhQ5RzVCnZvUmV_4hP9W6Vwcl4K6qrJIe5JLZmWVpzk0Dg',
         alt: 'Man with stylish modern haircut',

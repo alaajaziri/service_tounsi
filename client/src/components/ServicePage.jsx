@@ -12,6 +12,38 @@ const toDataUrl = (file) =>
     reader.readAsDataURL(file)
   })
 
+const tryParseJson = (rawText) => {
+  const raw = String(rawText || '').trim()
+  if (!raw) return null
+
+  try {
+    return JSON.parse(raw)
+  } catch {
+    // continue
+  }
+
+  const fenceMatch = raw.match(/```json\s*([\s\S]*?)\s*```/i)
+  if (fenceMatch?.[1]) {
+    try {
+      return JSON.parse(fenceMatch[1])
+    } catch {
+      // continue
+    }
+  }
+
+  const firstBrace = raw.indexOf('{')
+  const lastBrace = raw.lastIndexOf('}')
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    try {
+      return JSON.parse(raw.slice(firstBrace, lastBrace + 1))
+    } catch {
+      return null
+    }
+  }
+
+  return null
+}
+
 export default function ServicePage({ serviceId, hero }) {
   const [selectedFile, setSelectedFile] = useState(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -43,7 +75,18 @@ export default function ServicePage({ serviceId, hero }) {
           return [id, text]
         }),
       )
-      const resultsByService = Object.fromEntries(resultEntries)
+
+      let resultsByService = Object.fromEntries(resultEntries)
+      if (resultEntries.length === 1 && resultEntries[0]?.[0] === 'style') {
+        const stylePayload = tryParseJson(resultEntries[0]?.[1])
+        if (stylePayload?.beard || stylePayload?.haircut) {
+          resultsByService = {
+            ...(stylePayload?.beard ? { beard: JSON.stringify(stylePayload.beard) } : {}),
+            ...(stylePayload?.haircut ? { haircut: JSON.stringify(stylePayload.haircut) } : {}),
+          }
+        }
+      }
+
       const result = resultsByService[serviceId] || resultEntries[0]?.[1] || ''
       const imageDataUrl = await toDataUrl(selectedFile)
       saveAnalysisResult(resultRouteId, {
