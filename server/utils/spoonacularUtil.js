@@ -56,11 +56,6 @@ function formatIngredients(recipeInfo) {
   return lines.length ? lines.join("\n") : "المكونات غير متوفرة.";
 }
 
-function fallbackImageForTitle(title) {
-  const seed = encodeURIComponent(String(title || "meal").trim().toLowerCase());
-  return `https://picsum.photos/seed/${seed}/640/420`;
-}
-
 async function fetchRecipeInformation(recipeId, apiKey) {
   const { data } = await axios.get(`${SPOON_BASE_URL}/recipes/${recipeId}/information`, {
     params: {
@@ -138,7 +133,7 @@ async function fetchRecipesFromSpoonacular(ingredients, number = 3) {
       mealEnglish: title,
       nutrition,
       benefits: buildBenefits(nutrition),
-      imageUrl: recipeInfo?.image || fallbackImageForTitle(title),
+      imageUrl: String(recipeInfo?.image || "").trim(),
     };
   });
 }

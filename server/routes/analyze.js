@@ -5,6 +5,7 @@ const SERVICES = require("../services");
 const upload = require("../middleware/upload");
 const analyzeRateLimit = require("../middleware/rateLimit");
 const { fetchRecipesFromSpoonacular } = require("../utils/spoonacularUtil");
+const { generateImageWithHuggingFace } = require("../utils/hfImageUtil");
 
 const router = express.Router();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -53,6 +54,20 @@ function extractIngredientsFromVision(parsed) {
   return [...new Set(cleaned)].slice(0, 15);
 }
 
+function hasLatinText(value) {
+  return /[A-Za-z]/.test(String(value || ""));
+}
+
+function recipeContainsLatin(recipe) {
+  if (!recipe) return false;
+  return [
+    recipe.name,
+    recipe.ingredients,
+    recipe.steps,
+    ...(Array.isArray(recipe.benefits) ? recipe.benefits : []),
+  ].some(hasLatinText);
+}
+
 async function generateStrictJson(prompt, imagePart) {
   const strictPrompt = `${prompt}\nIMPORTANT: Return ONLY valid JSON. No markdown, no explanation, no extra text.`;
   const response = await model.generateContent({
@@ -75,10 +90,11 @@ async function localizeRecipesToTunisian(recipes) {
   if (!safeRecipes.length) return [];
 
   const translationPrompt = [
-    "Translate these recipe fields to Tunisian Arabic dialect.",
+    "Translate these recipe fields to Tunisian Arabic dialect (Arabizi not allowed).",
     "Keep JSON only. Do not add markdown.",
     "Translate only: name, ingredients, steps, benefits.",
     "Keep unchanged: mealEnglish, nutrition, imageUrl.",
+    "No English words in translated fields unless it's a strict unit like g, kg, ml, kcal.",
     "Return JSON shape: {\"recipes\": [{\"name\": string, \"ingredients\": string, \"steps\": string, \"mealEnglish\": string, \"nutrition\": object, \"benefits\": string[], \"imageUrl\": string}]}",
     JSON.stringify({ recipes: safeRecipes }),
   ].join("\n");
@@ -93,13 +109,118 @@ async function localizeRecipesToTunisian(recipes) {
   const localized = parseJsonFromText(response.response.text());
   if (!localized || !Array.isArray(localized.recipes)) return safeRecipes;
 
-  return localized.recipes.map((recipe, index) => ({
+  let merged = localized.recipes.map((recipe, index) => ({
     ...safeRecipes[index],
     ...recipe,
     mealEnglish: safeRecipes[index]?.mealEnglish,
     nutrition: safeRecipes[index]?.nutrition,
     imageUrl: safeRecipes[index]?.imageUrl,
   }));
+
+  // Second strict pass only for entries that still contain Latin text.
+  const unresolved = merged
+    .map((recipe, index) => ({ recipe, index }))
+    .filter((item) => recipeContainsLatin(item.recipe));
+
+  if (!unresolved.length) return merged;
+
+  try {
+    const strictPrompt = [
+      "Rewrite the following recipe fields into Tunisian Arabic script only.",
+      "Do not leave English words except units: g, kg, ml, kcal.",
+      "Return ONLY JSON in shape: {\"recipes\": [{\"name\": string, \"ingredients\": string, \"steps\": string, \"benefits\": string[]}]}.",
+      JSON.stringify({ recipes: unresolved.map((item) => item.recipe) }),
+    ].join("\n");
+
+    const strictResponse = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: strictPrompt }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+      },
+    });
+
+    const strictParsed = parseJsonFromText(strictResponse.response.text());
+    if (strictParsed && Array.isArray(strictParsed.recipes)) {
+      strictParsed.recipes.forEach((localizedRecipe, i) => {
+        const targetIndex = unresolved[i]?.index;
+        if (typeof targetIndex === "number") {
+          merged[targetIndex] = {
+            ...merged[targetIndex],
+            ...localizedRecipe,
+            mealEnglish: merged[targetIndex]?.mealEnglish,
+            nutrition: merged[targetIndex]?.nutrition,
+            imageUrl: merged[targetIndex]?.imageUrl,
+          };
+        }
+      });
+    }
+  } catch (strictPassError) {
+    console.warn("⚠️ Strict localization pass failed:", strictPassError.message);
+  }
+
+  return merged;
+}
+
+async function localizeSummaryToTunisian(summaryText) {
+  const summary = String(summaryText || "").trim();
+  if (!summary || !hasLatinText(summary)) return summary;
+
+  const prompt = [
+    "Translate this sentence to Tunisian Arabic script.",
+    "No English words unless impossible.",
+    "Return plain text only.",
+    summary,
+  ].join("\n");
+
+  try {
+    const response = await model.generateContent(prompt);
+    const localized = String(response.response.text() || "").trim();
+    return localized || summary;
+  } catch {
+    return summary;
+  }
+}
+
+async function addGeneratedRecipeImages(recipes) {
+  const safeRecipes = Array.isArray(recipes) ? recipes : [];
+  if (!safeRecipes.length) return [];
+
+  const withImages = await Promise.all(
+    safeRecipes.map(async (recipe) => {
+      const title = String(recipe?.mealEnglish || recipe?.name || "meal").trim();
+      const prompt = `Professional food photography of ${title}, plated dish, natural light, realistic details, appetizing composition`;
+      const generated = await generateImageWithHuggingFace(prompt);
+
+      return {
+        ...recipe,
+        imageUrl: generated || String(recipe?.imageUrl || "").trim(),
+      };
+    })
+  );
+
+  return withImages;
+}
+
+async function addGeneratedStyleImages(styles, serviceId) {
+  const safeStyles = Array.isArray(styles) ? styles : [];
+  if (!safeStyles.length) return [];
+
+  const styleType = serviceId === "beard" ? "beard style" : "haircut style";
+
+  const withImages = await Promise.all(
+    safeStyles.map(async (style) => {
+      const name = String(style?.name || styleType).trim();
+      const prompt = `Studio portrait of a man with ${name} ${styleType}, barbershop lighting, realistic hairstyle details, high quality photo`;
+      const generated = await generateImageWithHuggingFace(prompt);
+
+      return {
+        ...style,
+        imageUrl: generated || "",
+      };
+    })
+  );
+
+  return withImages;
 }
 
 router.post("/:serviceId", analyzeRateLimit, upload.single("photo"), async (req, res) => {
@@ -173,14 +294,35 @@ router.post("/:serviceId", analyzeRateLimit, upload.single("photo"), async (req,
         console.warn("⚠️ Recipe localization failed, using original recipe text:", localizeError.message);
       }
 
-      const summary = String(visionParsed?.summary || "").trim() || `المكونات اللي تبينو: ${ingredients.join("، ")}`;
+      let recipesWithImages = localizedRecipes;
+      try {
+        recipesWithImages = await addGeneratedRecipeImages(localizedRecipes);
+      } catch (imageError) {
+        console.warn("⚠️ Recipe image generation failed, using fallbacks:", imageError.message);
+      }
+
+      const rawSummary = String(visionParsed?.summary || "").trim() || `المكونات اللي تبينو: ${ingredients.join("، ")}`;
+      const summary = await localizeSummaryToTunisian(rawSummary);
       return res.json({
         success: true,
         result: JSON.stringify({
           summary,
-          recipes: localizedRecipes,
+          recipes: recipesWithImages,
         }),
       });
+    }
+
+    // Generate style preview images for structured style outputs.
+    if (serviceId === "beard" || serviceId === "haircut") {
+      const parsed = parseJsonFromText(resultText);
+      if (parsed && Array.isArray(parsed.styles) && parsed.styles.length) {
+        try {
+          parsed.styles = await addGeneratedStyleImages(parsed.styles, serviceId);
+          return res.json({ success: true, result: JSON.stringify(parsed) });
+        } catch (styleImageError) {
+          console.warn("⚠️ Style image generation failed, returning original styles:", styleImageError.message);
+        }
+      }
     }
 
     return res.json({ success: true, result: resultText });

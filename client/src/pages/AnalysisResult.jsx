@@ -135,6 +135,7 @@ function parseResult(text) {
           fitPercent: Number(style?.fit_percent ?? style?.fitPercent ?? 0),
           why: String(style?.why || '').trim(),
           how: String(style?.how || '').trim(),
+          imageUrl: String(style?.imageUrl || '').trim(),
           details: {
             maintenanceLevel: String(style?.details?.maintenance_level || style?.details?.maintenanceLevel || '').trim(),
             stylingTimeMin: normalizeNutrition(style?.details?.styling_time_min ?? style?.details?.stylingTimeMin ?? 0),
@@ -220,6 +221,17 @@ function StyleCard({ style }) {
 
   return (
     <div className="rounded-xl border border-outline-variant/30 bg-surface-container-high p-4">
+      {style.imageUrl ? (
+        <img
+          src={style.imageUrl}
+          alt={style.name || 'Style image'}
+          className="w-full h-44 object-cover rounded-lg border border-outline-variant/20 mb-3"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none'
+          }}
+        />
+      ) : null}
+
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-lg font-bold text-on-surface">{style.name || 'Style'}</h3>
         <span className="text-sm font-semibold text-primary">{style.fitPercent}%</span>
@@ -264,8 +276,7 @@ function MealCard({ recipe }) {
           alt={recipe.name}
           className="w-full h-48 object-cover"
           onError={(e) => {
-            const seed = encodeURIComponent(String(recipe.name || 'meal').trim().toLowerCase())
-            e.currentTarget.src = `https://picsum.photos/seed/${seed}/640/420`
+            e.currentTarget.style.display = 'none'
           }}
         />
       ) : (
