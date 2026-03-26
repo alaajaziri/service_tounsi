@@ -56,6 +56,50 @@ function formatIngredients(recipeInfo) {
   return lines.length ? lines.join("\n") : "المكونات غير متوفرة.";
 }
 
+function estimateCookingTime(recipeInfo) {
+  const prep = Number(recipeInfo?.preparationMinutes || 0);
+  const cook = Number(recipeInfo?.cookingMinutes || 0);
+  const ready = Number(recipeInfo?.readyInMinutes || 0);
+
+  if (prep > 0 && cook > 0) {
+    return prep + cook;
+  }
+
+  if (ready > 0) {
+    return ready;
+  }
+
+  const ingredientCount = Array.isArray(recipeInfo?.extendedIngredients)
+    ? recipeInfo.extendedIngredients.length
+    : 0;
+  const stepCount = Array.isArray(recipeInfo?.analyzedInstructions?.[0]?.steps)
+    ? recipeInfo.analyzedInstructions[0].steps.length
+    : 0;
+
+  // Fallback estimate when Spoonacular timing is missing.
+  const estimated = 12 + ingredientCount * 2 + stepCount * 4;
+  return Math.max(15, Math.min(90, estimated));
+}
+
+function deriveDifficulty(recipeInfo, minutes) {
+  const ingredientCount = Array.isArray(recipeInfo?.extendedIngredients)
+    ? recipeInfo.extendedIngredients.length
+    : 0;
+  const stepCount = Array.isArray(recipeInfo?.analyzedInstructions?.[0]?.steps)
+    ? recipeInfo.analyzedInstructions[0].steps.length
+    : 0;
+
+  if (minutes <= 25 && ingredientCount <= 8 && stepCount <= 5) {
+    return "ساهلة";
+  }
+
+  if (minutes >= 55 || ingredientCount >= 14 || stepCount >= 10) {
+    return "صعيبة";
+  }
+
+  return "متوسطة";
+}
+
 async function fetchRecipeInformation(recipeId, apiKey) {
   const { data } = await axios.get(`${SPOON_BASE_URL}/recipes/${recipeId}/information`, {
     params: {
@@ -115,6 +159,7 @@ async function fetchRecipesFromSpoonacular(ingredients, number = 3) {
   );
 
   return details.map((recipeInfo) => {
+    const cookingTimeMin = estimateCookingTime(recipeInfo);
     const nutrients = recipeInfo?.nutrition?.nutrients || [];
     const nutrition = {
       calories: getNutrientValue(nutrients, "Calories"),
@@ -131,6 +176,9 @@ async function fetchRecipesFromSpoonacular(ingredients, number = 3) {
       ingredients: formatIngredients(recipeInfo),
       steps: formatInstructionSteps(recipeInfo),
       mealEnglish: title,
+      servings: Number.isFinite(Number(recipeInfo?.servings)) ? Number(recipeInfo.servings) : 0,
+      cooking_time_min: cookingTimeMin,
+      difficulty_level: deriveDifficulty(recipeInfo, cookingTimeMin),
       nutrition,
       benefits: buildBenefits(nutrition),
       imageUrl: String(recipeInfo?.image || "").trim(),

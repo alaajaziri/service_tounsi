@@ -155,6 +155,9 @@ function parseResult(text) {
           ingredients: String(recipe?.ingredients || '').trim(),
           steps: String(recipe?.steps || '').trim(),
           imageUrl: String(recipe?.imageUrl || '').trim(),
+          servings: normalizeNutrition(recipe?.servings ?? recipe?.servingCount ?? 0),
+          cookingTimeMin: normalizeNutrition(recipe?.cooking_time_min ?? recipe?.cookingTimeMin ?? recipe?.readyInMinutes ?? 0),
+          difficultyLevel: String(recipe?.difficulty_level ?? recipe?.difficultyLevel ?? '').trim(),
           nutrition: {
             calories: normalizeNutrition(recipe?.nutrition?.calories),
             proteinG: normalizeNutrition(recipe?.nutrition?.protein_g ?? recipe?.nutrition?.proteinG),
@@ -286,6 +289,20 @@ function MealCard({ recipe }) {
       )}
       <div className="p-4">
         <h3 className="text-lg font-bold text-on-surface text-right">{recipe.name}</h3>
+        {(recipe.cookingTimeMin > 0 || recipe.difficultyLevel) ? (
+          <div className="mt-3 flex items-center justify-end gap-2 flex-wrap">
+            {recipe.cookingTimeMin > 0 ? (
+              <span className="text-xs rounded-full border border-outline-variant/30 bg-surface px-3 py-1 text-on-surface-variant">
+                وقت الطبخ: {recipe.cookingTimeMin} دق
+              </span>
+            ) : null}
+            {recipe.difficultyLevel ? (
+              <span className="text-xs rounded-full border border-outline-variant/30 bg-surface px-3 py-1 text-on-surface-variant">
+                الصعوبة: {recipe.difficultyLevel}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
         {recipe.ingredients ? (
           <div className="mt-3">
             <p className="text-sm font-semibold text-primary text-right mb-2">المكونات:</p>
@@ -301,7 +318,14 @@ function MealCard({ recipe }) {
 
         {(recipe.nutrition?.calories || recipe.nutrition?.proteinG || recipe.nutrition?.carbsG || recipe.nutrition?.fatsG || recipe.nutrition?.fiberG) ? (
           <div className="mt-4">
-            <p className="text-sm font-semibold text-primary text-right mb-2">القيمة الغذائية (لكل حصة):</p>
+            <div className="flex items-center justify-between gap-3 mb-2">
+              {recipe.servings > 0 ? (
+                <p className="text-xs text-on-surface-variant">الوصفة تعمل {recipe.servings} حصص</p>
+              ) : (
+                <span />
+              )}
+              <p className="text-sm font-semibold text-primary text-right">القيمة الغذائية (لكل حصة):</p>
+            </div>
 
             <div className="mb-3">
               <div className="flex items-center justify-between text-xs text-on-surface-variant mb-1">

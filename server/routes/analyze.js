@@ -90,11 +90,14 @@ async function localizeRecipesToTunisian(recipes) {
   if (!safeRecipes.length) return [];
 
   const translationPrompt = [
-    "Translate these recipe fields to Tunisian Arabic dialect (Arabizi not allowed).",
+    "Rewrite these recipes in authentic Tunisian kitchen style and Tunisian Arabic dialect (Arabic script only, no Arabizi).",
     "Keep JSON only. Do not add markdown.",
-    "Translate only: name, ingredients, steps, benefits.",
+    "Rewrite only: name, ingredients, steps, benefits.",
     "Keep unchanged: mealEnglish, nutrition, imageUrl.",
-    "No English words in translated fields unless it's a strict unit like g, kg, ml, kcal.",
+    "Use Tunisian food wording and common local terms (for example: فلفل, طماطم, هريسة, زيت زيتون, كسكسي when relevant).",
+    "If an ingredient is uncommon in Tunisia, suggest a practical Tunisian alternative in the ingredient text.",
+    "No English words in rewritten fields unless it's a strict unit like g, kg, ml, kcal.",
+    "Keep the recipe realistic and easy for a Tunisian home kitchen.",
     "Return JSON shape: {\"recipes\": [{\"name\": string, \"ingredients\": string, \"steps\": string, \"mealEnglish\": string, \"nutrition\": object, \"benefits\": string[], \"imageUrl\": string}]}",
     JSON.stringify({ recipes: safeRecipes }),
   ].join("\n");
@@ -126,8 +129,9 @@ async function localizeRecipesToTunisian(recipes) {
 
   try {
     const strictPrompt = [
-      "Rewrite the following recipe fields into Tunisian Arabic script only.",
+      "Rewrite the following recipe fields into strong Tunisian Arabic cooking style (Arabic script only).",
       "Do not leave English words except units: g, kg, ml, kcal.",
+      "Use Tunisian culinary expressions and local ingredient naming.",
       "Return ONLY JSON in shape: {\"recipes\": [{\"name\": string, \"ingredients\": string, \"steps\": string, \"benefits\": string[]}]}.",
       JSON.stringify({ recipes: unresolved.map((item) => item.recipe) }),
     ].join("\n");

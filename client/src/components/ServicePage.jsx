@@ -47,6 +47,8 @@ const tryParseJson = (rawText) => {
 export default function ServicePage({ serviceId, hero }) {
   const [selectedFile, setSelectedFile] = useState(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [loadingStep, setLoadingStep] = useState('')
+  const [loadingPercent, setLoadingPercent] = useState(0)
   const { setStatus, saveAnalysisResult } = useStatus()
   const navigate = useNavigate()
 
@@ -66,15 +68,23 @@ export default function ServicePage({ serviceId, hero }) {
     }
 
     setIsAnalyzing(true)
+    setLoadingStep('جاري تجهيز الصورة...')
+    setLoadingPercent(15)
     setStatus('Analyzing image...')
 
     try {
+      setLoadingStep('جاري تحليل الصورة بالذكاء الاصطناعي...')
+      setLoadingPercent(45)
+
       const resultEntries = await Promise.all(
         analysisServiceIds.map(async (id) => {
           const text = await analyzeImage(id, selectedFile)
           return [id, text]
         }),
       )
+
+      setLoadingStep('جاري توليد التوصيات المناسبة...')
+      setLoadingPercent(75)
 
       let resultsByService = Object.fromEntries(resultEntries)
       if (resultEntries.length === 1 && resultEntries[0]?.[0] === 'style') {
@@ -89,6 +99,10 @@ export default function ServicePage({ serviceId, hero }) {
 
       const result = resultsByService[serviceId] || resultEntries[0]?.[1] || ''
       const imageDataUrl = await toDataUrl(selectedFile)
+
+      setLoadingStep('جاري تجهيز صفحة النتيجة...')
+      setLoadingPercent(95)
+
       saveAnalysisResult(resultRouteId, {
         result,
         resultsByService,
@@ -104,16 +118,48 @@ export default function ServicePage({ serviceId, hero }) {
           imageDataUrl,
         },
       })
+      // Prevent old result text from lingering in the floating status box on later pages.
+      setStatus('', false)
     } catch (err) {
       const errMsg = (err && err.message) || 'Unknown error'
       setStatus(errMsg, true)
     } finally {
       setIsAnalyzing(false)
+      setLoadingStep('')
+      setLoadingPercent(0)
     }
   }
 
   return (
     <>
+      {isAnalyzing ? (
+        <div className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm flex items-center justify-center px-6">
+          <div className="w-full max-w-lg rounded-2xl border border-outline-variant/30 bg-surface-container p-6 text-right shadow-2xl">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="text-xl font-bold text-on-surface">النتيجة تتجهز توا</h3>
+              <span className="material-symbols-outlined text-primary animate-spin">progress_activity</span>
+            </div>
+
+            <p className="text-on-surface-variant mb-3">{loadingStep || 'جاري المعالجة...'}</p>
+
+            <div className="h-2 rounded-full bg-surface-container-highest border border-outline-variant/30 overflow-hidden mb-2">
+              <div
+                className="h-full gold-gradient transition-all duration-500"
+                style={{ width: `${loadingPercent}%` }}
+              />
+            </div>
+            <p className="text-xs text-on-surface-variant">{loadingPercent}%</p>
+
+            <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-on-surface-variant">
+              <p>1. تجهيز الصورة</p>
+              <p>2. تحليل الذكاء الاصطناعي</p>
+              <p>3. توليد التوصيات</p>
+              <p>4. تجهيز النتيجة</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Hero Section */}
       <section className="relative min-h-[795px] flex items-center overflow-hidden px-6 lg:px-20 py-20">
         <div className="absolute inset-0 z-0">
@@ -143,9 +189,6 @@ export default function ServicePage({ serviceId, hero }) {
             >
               <span>{hero.buttonText}</span>
               <span className="material-symbols-outlined">rocket_launch</span>
-            </button>
-            <button className="bg-surface-container-highest/40 backdrop-blur-md border border-outline-variant/30 text-on-surface font-semibold px-10 py-5 rounded-xl text-xl hover:bg-surface-container-highest/60 transition-all">
-              اكتشف المزيد
             </button>
           </div>
         </div>

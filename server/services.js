@@ -17,7 +17,7 @@ const SERVICES = {
   },
   fridge: {
     prompt:
-      "You are a food-vision assistant. Analyze this fridge photo and identify visible ingredients. Reply ONLY in valid JSON with this exact shape: {\"summary\": string in Tunisian Arabic, \"ingredients\": [string in English]}. Return 5 to 15 ingredient names, singular where possible (e.g. egg, milk, spinach, bread, yogurt). No markdown, no extra text.",
+      "You are a food-vision assistant. Analyze this fridge photo and identify visible ingredients. Reply ONLY in valid JSON with this exact shape: {\"summary\": string in Tunisian Arabic, \"ingredients\": [string in English], \"uncertain_ingredients\": [string in English]}. CRITICAL RULES: list in \"ingredients\" only items you can clearly identify with high confidence. If an item is unclear, partially hidden, blurry, or ambiguous, DO NOT guess: either skip it or place it in \"uncertain_ingredients\". Use singular ingredient names where possible (e.g. egg, milk, spinach, bread, yogurt). Return 5 to 15 clear ingredients when possible. No markdown, no extra text.",
   },
   outfit: {
     prompt:
